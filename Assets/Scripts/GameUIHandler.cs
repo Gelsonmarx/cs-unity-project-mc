@@ -100,7 +100,6 @@ public class GameUIHandler : MonoBehaviour
 
             CardInfo cardInfo = _cardPairs[i];
             Card cardComponent = card.GetComponent<Card>();
-            cardComponent.Init(cardInfo);
 
             Button cardButton = card.GetComponent<Button>();
             if (cardButton != null)

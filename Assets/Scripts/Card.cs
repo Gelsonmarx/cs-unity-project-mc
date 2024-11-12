@@ -11,7 +11,7 @@ public class Card : MonoBehaviour
     [SerializeField] private Button cardButton;
     private int id = 0;
 
-    public void Init(GameUIHandler.CardInfo cardInfo)
+    public void Init(GameManager.CardInfo cardInfo)
     {
         this.id = cardInfo.id;
         cardImage.sprite = cardInfo.sprite;
