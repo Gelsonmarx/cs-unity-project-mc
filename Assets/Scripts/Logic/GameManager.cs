@@ -8,10 +8,10 @@ namespace Logic
 {
     public class GameManager : Singleton<GameManager>
     {
-        public event Action<List<CardInfo>, int> OnBoardCreated;
+        public event Action<List<int>, int> OnBoardCreated;
         private int gridSize;
         private Card currentSelectedCard = null;
-        private List<CardInfo> _cardPairs;
+        private List<int> _cardPairs;
         private bool isSelecting = false;
         [SerializeField] private List<Sprite> cardSprites;
 
@@ -20,9 +20,9 @@ namespace Logic
         {
             public int matchCount;
             public int moveCount;
-            public float timeElapsed;
             public int difficultyLevel;
-            public bool isGameOver;
+            public List<int> cardPairs;
+            public List<int> filledPairs;
         }
 
         private GameInfo _gameInfo;
@@ -34,78 +34,105 @@ namespace Logic
         public event Action<int> OnMoveCountUpdated;
         public event Action<GameInfo> OnGameEnded;
         public event Action<GameInfo> OnRestartGame;
+        public event Action<GameInfo> OnContinueGame;
 
 
         public void StartGame(int difficultyLevel)
         {
+            ResetGameInfo();
             _gameInfo = new GameInfo
             {
                 matchCount = 0,
                 moveCount = 0,
-                timeElapsed = 0f,
                 difficultyLevel = Mathf.Clamp(difficultyLevel, 0, 5),
-                isGameOver = false
+                cardPairs = InitializeBoard(difficultyLevel, cardSprites),
+                filledPairs = new List<int>()
             };
-            InitializeBoard(difficultyLevel, cardSprites);
             OnMatchCountUpdated?.Invoke(_gameInfo.matchCount);
             OnMoveCountUpdated?.Invoke(_gameInfo.moveCount);
         }
+
+        public void ContinueGame(GameInfo gameInfo)
+        {
+            _gameInfo = new GameInfo
+            {
+                matchCount = gameInfo.matchCount,
+                moveCount = gameInfo.moveCount,
+                difficultyLevel = gameInfo.difficultyLevel,
+                cardPairs = ContinueBoard(gameInfo),
+                filledPairs = gameInfo.filledPairs
+            };
+            OnMatchCountUpdated?.Invoke(_gameInfo.matchCount);
+            OnMoveCountUpdated?.Invoke(_gameInfo.moveCount);
+            OnContinueGame?.Invoke(_gameInfo);
+        }
+
+        public Sprite GetSpriteWithIndex(int index) => cardSprites[index];
 
         public void RestartGame()
         {
             OnRestartGame?.Invoke(_gameInfo);
         }
 
-        private void Update()
-        {
-            if (!_gameInfo.isGameOver)
-            {
-                _gameInfo.timeElapsed += Time.deltaTime;
-            }
-        }
-
         void EndGame()
         {
-            _gameInfo.isGameOver = true;
             OnGameEnded?.Invoke(_gameInfo);
+            ResetGameInfo();
+        }
+
+        private void ResetGameInfo()
+        {
+            int currentDificuty = _gameInfo.difficultyLevel;
+            _gameInfo
+              = new  GameInfo
+            {
+                matchCount = 0,
+                moveCount = 0,
+                difficultyLevel = currentDificuty,
+                cardPairs = new List<int>(),
+                filledPairs = new List<int>()
+            };
+            SaveLoadSystem.Instance.SaveGameProgress(_gameInfo);
         }
 
         void AddMatch()
         {
-            if (!_gameInfo.isGameOver)
+            _gameInfo.matchCount++;
+            OnMatchCountUpdated?.Invoke(_gameInfo.matchCount);
+            int matchSize = gridSize * (gridSize + 1) / 2;
+            if (_gameInfo.matchCount >= matchSize)
             {
-                _gameInfo.matchCount++;
-                OnMatchCountUpdated?.Invoke(_gameInfo.matchCount);
-                int matchSize = gridSize * (gridSize + 1)/ 2;
-                if (_gameInfo.matchCount >= matchSize)
-                {
-                    EndGame();
-                }
+                EndGame();
             }
         }
 
         void AddMove()
         {
-            if (!_gameInfo.isGameOver)
-            {
-                _gameInfo.moveCount++;
-                OnMoveCountUpdated?.Invoke(_gameInfo.moveCount);
-            }
+            _gameInfo.moveCount++;
+            OnMoveCountUpdated?.Invoke(_gameInfo.moveCount);
         }
-    
+
 
         [System.Serializable]
         public struct CardInfo
         {
             public int id;
-            public Sprite sprite;
         }
 
-        public void InitializeBoard(int difficultyLevel, List<Sprite> _cardSprites)
+        public List<int> InitializeBoard(int difficultyLevel, List<Sprite> _cardSprites)
         {
             gridSize = GetGridSizeByDifficulty(difficultyLevel);
             GenerateCardPairs(_cardSprites);
-            OnBoardCreated?.Invoke(_cardPairs, gridSize);  
+            OnBoardCreated?.Invoke(_cardPairs, gridSize);
+            return _cardPairs;
+        }
+
+        private List<int> ContinueBoard(GameInfo gameInfo)
+        {
+            _cardPairs = gameInfo.cardPairs;
+            gridSize = GetGridSizeByDifficulty(gameInfo.difficultyLevel);
+            OnBoardCreated?.Invoke(_cardPairs, gridSize);
+            return _cardPairs;
         }
 
         private int GetGridSizeByDifficulty(int difficultyLevel)
@@ -125,20 +152,19 @@ namespace Logic
         {
             int numCards = gridSize * (gridSize + 1);
             int numPairs = numCards / 2;
-            _cardPairs = new List<CardInfo>();
+            _cardPairs = new List<int>();
 
             for (int i = 0; i < numPairs; i++)
             {
                 Sprite sprite = cardSprites[i % cardSprites.Count];
-                CardInfo cardInfo = new CardInfo { id = i, sprite = sprite };
-                _cardPairs.Add(cardInfo);
-                _cardPairs.Add(cardInfo);
+                _cardPairs.Add(i);
+                _cardPairs.Add(i);
             }
 
             ShuffleCards(_cardPairs);
         }
 
-        private void ShuffleCards(List<CardInfo> cards)
+        private void ShuffleCards(List<int> cards)
         {
             for (int i = 0; i < cards.Count; i++)
             {
@@ -163,8 +189,11 @@ namespace Logic
                 OnMatch?.Invoke();
                 cardComponent2.DisableCard();
                 cardComponent.DisableCard();
+                _gameInfo.filledPairs.Add(cardComponent.GetId());
                 AddMatch();
             }
+
+            SaveLoadSystem.Instance.SaveGameProgress(_gameInfo);
         }
 
         public void OnCardClicked(Card cardComponent)
@@ -176,6 +205,7 @@ namespace Logic
                 currentSelectedCard = cardComponent;
                 return;
             }
+
             StartCoroutine(CheckMatchLogic(cardComponent, currentSelectedCard));
             currentSelectedCard = null;
         }

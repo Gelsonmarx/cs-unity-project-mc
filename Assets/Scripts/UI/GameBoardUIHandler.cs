@@ -26,6 +26,7 @@ namespace UI
             gameManager.OnMatchCountUpdated += HandleMatchCount;
             gameManager.OnMoveCountUpdated += HandleMoveCount;
             gameManager.OnGameEnded += HandleEndGame;
+            gameManager.OnContinueGame += HandleContinueGame;
             endGameButton.onClick.AddListener(() =>
             {
                 endGameScreen.SetActive(false);
@@ -33,6 +34,18 @@ namespace UI
                 endGameButton.onClick.RemoveAllListeners();
                 gameManager.RestartGame();
             });
+        }
+
+        private void HandleContinueGame(GameManager.GameInfo gameInfo)
+        {
+            foreach (Transform child in boardParent)
+            {
+                var card = child.gameObject.GetComponent<Card>();
+                if (gameInfo.filledPairs.Contains(card.GetId()))
+                {
+                    card.DisableCard();
+                }
+            }
         }
 
         private void HandleEndGame(GameManager.GameInfo info)
@@ -51,13 +64,13 @@ namespace UI
             moveCountText.text = count.ToString();
         }
 
-        private void HandleBoardCreated(List<GameManager.CardInfo> cardPairs, int gridSize)
+        private void HandleBoardCreated(List<int> cardPairs, int gridSize)
         {
             this.gridSize = gridSize;
             CreateBoard(cardPairs);
         }
 
-        private void CreateBoard(List<GameManager.CardInfo> cardPairs)
+        private void CreateBoard(List<int> cardPairs)
         {
             foreach (Transform child in boardParent)
             {
@@ -69,9 +82,10 @@ namespace UI
                 GameObject card = Instantiate(cardPrefab, boardParent);
                 card.transform.localScale = Vector3.one;
 
-                GameManager.CardInfo cardInfo = cardPairs[i];
+                int cardID = cardPairs[i];
                 Card cardComponent = card.GetComponent<Card>();
-                cardComponent.Init(cardInfo);
+                var sprite = gameManager.GetSpriteWithIndex(cardID);
+                cardComponent.Init(cardID, sprite);
 
                 Button cardButton = card.GetComponent<Button>();
                 if (cardButton != null)
@@ -124,6 +138,7 @@ namespace UI
                 gameManager.OnMatchCountUpdated -= HandleMatchCount;
                 gameManager.OnMoveCountUpdated -= HandleMoveCount;
                 gameManager.OnGameEnded -= HandleEndGame;
+                gameManager.OnContinueGame -= HandleContinueGame;
             }
         }
     }

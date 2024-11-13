@@ -9,6 +9,7 @@ namespace UI
     {
         [SerializeField] private Button[] dificultyButtons;
         [SerializeField] private Button playButton;
+        [SerializeField] private Button continueButton;
         [SerializeField] private Button settingsButton;
         [SerializeField] private Button closeSettingsButton;
         [SerializeField] private Slider volumeSlider;
@@ -21,8 +22,14 @@ namespace UI
         void Start()
         {
             playButton.onClick.AddListener(StartGame);
+            continueButton.onClick.AddListener(ContinueGame);
             closeSettingsButton.onClick.AddListener(CloseSettings);
             settingsButton.onClick.AddListener(OpenSettings);
+
+            if (SaveLoadSystem.Instance.GameProgress.moveCount <= 0)
+            {
+                continueButton.gameObject.SetActive(false);
+            }
 
             SetSelectedDificulty();
             GameManager.Instance.OnRestartGame += info => OnDificultyChange(info.difficultyLevel);
@@ -34,7 +41,7 @@ namespace UI
             settingsButton.gameObject.SetActive(false);
             dificultyPanel.gameObject.SetActive(false);
             volumeSlider.value = SaveLoadSystem.Instance.GameSettings.Volume;
-            muteSoundToggle.isOn  = SaveLoadSystem.Instance.GameSettings.Mute;
+            muteSoundToggle.isOn = SaveLoadSystem.Instance.GameSettings.Mute;
             volumeSlider.onValueChanged.AddListener(slider => SoundManager.Instance.SetEffectsVolume(slider));
             muteSoundToggle.onValueChanged.AddListener(toggle => SoundManager.Instance.ToggleEffectsMute(toggle));
         }
@@ -56,6 +63,13 @@ namespace UI
             GameManager.Instance.StartGame(actualDificulty);
         }
 
+        private void ContinueGame()
+        {
+            gameScreen.SetActive(true);
+            var gameInfo = SaveLoadSystem.Instance.GameProgress;
+            GameManager.Instance.ContinueGame(gameInfo);
+        }
+
         void SetSelectedDificulty()
         {
             int actualDificulty = SaveLoadSystem.Instance.GameSettings.Dificulty;
@@ -71,6 +85,11 @@ namespace UI
 
         void OnDificultyChange(int index)
         {
+            if (SaveLoadSystem.Instance.GameProgress.moveCount <= 0)
+            {
+                continueButton.gameObject.SetActive(false);
+            }
+
             SaveLoadSystem.Instance.SaveDificulty(index);
 
             SetSelectedDificulty();

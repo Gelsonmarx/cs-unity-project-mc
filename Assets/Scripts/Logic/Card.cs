@@ -10,10 +10,10 @@ namespace Logic
         [SerializeField] private Button cardButton;
         private int id = 0;
 
-        public void Init(GameManager.CardInfo cardInfo)
+        public void Init(int id, Sprite sprite)
         {
-            this.id = cardInfo.id;
-            cardImage.sprite = cardInfo.sprite;
+            this.id = id;
+            cardImage.sprite = sprite;
         }
 
         public int GetId() => id;
